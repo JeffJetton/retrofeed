@@ -55,5 +55,7 @@ def strip_tags(s):
         if end_pos < 0:
             break
         s = s[0:start_pos] + s[end_pos+1:]
+    s = s.replace('<br>', '\n')
+    s = s.replace('<BR>', '\n')
     return s
             
