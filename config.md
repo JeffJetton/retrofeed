@@ -2,17 +2,17 @@
 
 ## Initial Steps
  
-Set up your Pi as you normally would, with both ssh and wi-fi on and configured. You'll be making a lot of tweaks, so I'd recommend doing this with a fresh install on a new SD card. You can use the "gear" button (or type ctrl-shift-X) to pre-configure a lot of this at imaging time.
+Set up your Pi with both ssh and wi-fi on and configured. You'll be making a lot of tweaks, so I'd recommend doing this with a fresh install on a new SD card. You can use the "gear" button (or type ctrl-shift-X) in Rasperry Pi Imager to pre-configure a lot of this at imaging time.
 
 While having the full desktop is nice, you can get away with just installing the "Lite" verison of the OS without it.
 
->Note that the changes outlined below generally won't take effect until next boot. You can restart from the command line using `sudo shutdown -r now`
+>Note that the changes outlined below generally won't take effect until your next restart (`sudo shutdown -r now` or `sudo reboot`).
 
 ### Composite Video
 
-Your Pi will need to send video using the composite output. On most modern Pis, this uses the so-called "audio" port and requires a special cable or adapter. Pretty much any cable with a tip-ring-ring-sleeve 1/8" (3.5mm) plug on one end and three 1/4" RCA plugs on the other should do the job. If you get the kind that is designed for camcorders, they're wired a bit differently, and the Pi's video signal will actually come out the "audio right" plug (which is usually red).
+Your Pi will need to send video using the composite output. On most modern Pis, this uses the so-called "audio" port and requires a special cable or adapter. Pretty much any commercially-available cable with a tip-ring-ring-sleeve 1/8" (3.5mm) plug on one end and three 1/4" RCA plugs on the other should do the job. These can be found for under 10USD. If you get the kind that is designed for camcorders, they'll do the job, although they're wired a bit differently: The Pi's video signal will actually come out the "audio right" plug (which is usually red).
   
-Switching on composite output can easily be done in Raspi-Config from the commmand line:
+To switch on composite output, launch Raspi-Config from the commmand line:
 
 `sudo raspi-config`
 
@@ -54,15 +54,15 @@ To view your font changes without rebooting the entire system, use:
 
 Edit `/boot/config.txt` and add the lines below somewhere in it.
 
-* The values for overscan_left/right/etc will probably need to be tweaked depending on your monitor
+* The values for overscan_left/right/etc are just what worked for me. You'll probably wind up using different values, depending on your monitor. It can take a bit of experimentation. Positive numbers increase the size of the black border on the corresponding side, while negative numbers reduce it.
 * For PAL monitors, change the value for `sdtv_mode` to 2
 * For color monitors (if you want to use color), omit `sdtv_disable_colorburst=1` or set it to 0
 
 ```
-overscan_left=32
-overscan_right=32
-overscan_top=4
-overscan_bottom=4
+overscan_left=34
+overscan_right=30
+overscan_top=-16
+overscan_bottom=-8
 
 sdtv_mode=0
 sdtv_aspect=1
@@ -90,7 +90,7 @@ Setting them very low, as above, will force the default terminal to display fewe
 
 ### Modify cmdline.txt
 
-Edit `/boot/cmdline.txt` and add `logo.nologo` on the end. This will disable the "four raspberries" graphic at the top of the screen.
+Edit `/boot/cmdline.txt` and add `logo.nologo` on the **end**. This will disable the "four raspberries" graphic at the top of the screen.
 
 The existing contents of your `cmdline.txt` may differ, but here's what mine looked like after the edit, as an example:
 
@@ -118,7 +118,7 @@ If your monitor is monochrome...
  * This should go near the top of the file, before any existing part of the script checks the `$TERM` variable
 * If this line is in the file, ***comment it out:***
  * `force_color_prompt=yes`
-* Find the section that checks for color support and aliases `ls` and `grep` to always use it. Either comment those lines out, or explicitly set the color to "none" like so:
+* Find the section that checks for color support and aliases `ls` and `grep` to always use color. Either comment those lines out, or explicitly set the color to "none" like so:
  * `alias ls='ls --color=none'`
 
 
@@ -126,14 +126,22 @@ If your monitor is monochrome...
 
 ### Transferring Files
 
-If you've downloaded the Python files directly from your Pi, you won't need this step. But if they're on your main computer, transfer them over using `scp`
+If you've downloaded the Python files directly from your Pi, you won't need this step. But if they're on your main computer, transfer them over using `scp`. Here's an example that assumes:
+
+* Your Pi's hostname is the default `raspberrypi`
+* You have a directory in your user directory called `retrofeed`
+* You're in the retrofeed directory on the computer you're transferring from, with all the `.py` python files in it
+
+`scp  *.py  pi@raspberrypi.local:~/retrofeed`
+
+Obviously, you'll need to adjust accordingly if your situation is different.  The `.local` may or may not be necessary, depending on how you have it set up.
 
 ### Modify init.d
 
 >There are several ways to get something to launch at boot, and this is just one. Feel free to use a different method if you have a favorite.
 
 
-TODO:
+**TODO:** *Finish this part*
 
 
 
