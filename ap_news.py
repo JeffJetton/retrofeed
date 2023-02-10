@@ -35,7 +35,7 @@ def get_news():
            }
     url = 'https://apnews.com'
     
-    response = requests.get(url)
+    response = requests.get(url, headers={'Cache-Control': 'no-cache'})
     if response.status_code == 200:
         split_source = response.text.split('"firstWords":')
         for chunk in split_source:

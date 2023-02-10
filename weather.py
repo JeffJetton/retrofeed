@@ -48,9 +48,11 @@ def get_weather(lat, lon, location=None):
     #url = f'https://forecast.weather.gov/MapClick.php?textField1={lat}&textField2={lon}'
     url = f'https://forecast.weather.gov/MapClick.php?lat={lat}&lon={lon}'
     #print(url)
-    response = requests.get(url)
+    response = requests.get(url, headers={'Cache-Control':'no-cache', 'Pragma':'no-cache'})
     if response.status_code != 200:
-        return(assign_errors(wx))
+        return(assign_errors(wx))     
+    #print(response.headers)
+    
     soup = BeautifulSoup(response.text, 'html.parser')
     # Test check one element to make sure the site's showing weather
     if (soup.find('h2', 'panel-title')) is None:
