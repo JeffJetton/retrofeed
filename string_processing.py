@@ -42,7 +42,7 @@ def clean_chars(s):
     return new_s.strip()
     
 
-
+# Pulls out a few HTML tags
 def strip_tags(s):
     s = s.replace('\\u003c', '<')
     s = s.replace('\\"', '"')
@@ -59,3 +59,12 @@ def strip_tags(s):
     s = s.replace('<BR>', '\n')
     return s
             
+
+# Given a datetime object, return formatted time
+# (no zero padding for one-digit hours)
+def format_time(dt):
+    h = dt.hour
+    if h > 12:
+        h -= 12
+    return str(h) + dt.strftime(":%M%p")
+

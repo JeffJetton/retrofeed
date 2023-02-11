@@ -9,6 +9,7 @@ import time
 import ap_news
 import finance
 import spot_the_station
+import string_processing as sp
 import weather
 
 
@@ -20,15 +21,17 @@ VERSION = '0.1.2'
 
 # Screen and timing settings
 LINE_WIDTH = 40
-SEGMENT_DELAY = 6       # Time between major segments
-SUBSEGMENT_DELAY = 1    # If a segment has multiple identical items, time between those
-PRINT_DELAY = 0.05      # Time between normally-printed characters
-NEWLINE_DELAY = 0.01    # Time between characters when doing a slow newline
-QUIZ_TIMER_DELAY = 0.2  # Time between LINE_WIDTH asterisks during quiz
+SEGMENT_DELAY = 6          # Time between major segments
+SUBSEGMENT_DELAY = 1       # If a segment has multiple identical items, time between those
+PRINT_DELAY = 0.05         # Time between normally-printed characters
+NEWLINE_DELAY = 0.01       # Time between characters when doing a slow newline
+QUIZ_TIMER_DELAY = 0.2     # Time between LINE_WIDTH asterisks during quiz
+
+VERBOSE_UPDATES = True     # Display a message when refreshing segment data?
 
 # Weather settings.  Current conditions update every hour, but hazards/forecasts may
 # change more frequently, so we use two different refresh intervals.
-WX_MAX_PERIODS = 5      # Max forecast periods to show during full weather display
+WX_MAX_PERIODS = 5         # Max forecast periods to show during full weather display
 WX_LAT = 36.118542
 WX_LON = -86.798358
 WX_LOCATION = 'Nashville Intl Airport (BNA)'  # Overrides location from web page
@@ -54,7 +57,7 @@ FIN_REFRESH = dt.timedelta(minutes=13)
 
 # Order of segments in the overall loop
 # See loop in main() at end of file for possible options
-SEGMENTS = ['DATE_TIME+',
+SEGMENTS = ['FINANCE', 'DATE_TIME+',
             'WX_FULL',
             'DATE_TIME',
             'NEWS_FULL',
@@ -79,7 +82,7 @@ SEGMENTS = ['DATE_TIME+',
 
 
 # Optional faster speeds
-if False:
+if True:
     SEGMENT_DELAY = 2
     SUBSEGMENT_DELAY = 0.50
     PRINT_DELAY = 0.001
@@ -88,6 +91,9 @@ if False:
 
 
 
+
+###############################################################################
+    
     
 # Slow Print -- Similar to print() but with fun options
 #               Wraps words at wrap_width characters if it is non-zero
@@ -137,6 +143,19 @@ def print_header(s, left_marker=' ', right_marker=None):
     slowp()
 
 
+# Display passed string as an "updating..." message
+def print_update_msg(m):
+    if VERBOSE_UPDATES:
+        slowp(f'[{m}', end='')
+        for i in range(3):
+            time.sleep(SUBSEGMENT_DELAY)
+            slowp('.', end='')
+        time.sleep(SUBSEGMENT_DELAY)
+        slowp(']')
+        slown()
+        #slown(SEGMENT_DELAY)
+
+
 
 def show_date_time(descriptive=False):
     now = dt.datetime.now()
@@ -151,10 +170,7 @@ def show_date_time(descriptive=False):
         date_text += 'rd'
     else:
         date_text += 'th'
-    h = now.hour
-    if h > 12:
-        h -= 12
-    time_text = str(h) + now.strftime(":%M%p")
+    time_text = sp.format_time(now)
     if descriptive:
         slowp('It is ' + date_text)
         slowp('Current time is ' + time_text)
@@ -167,9 +183,8 @@ def show_finance(fin):
     
     # Check financials?
     now = dt.datetime.now()
-    if fin is None or now - fin['fetched_on'] >= REFRESH:
-        slowp('[Updating Financial Data]')
-        slown(SEGMENT_DELAY)
+    if fin is None or now - fin['fetched_on'] >= FIN_REFRESH:
+        print_update_msg('Updating Financial Data')
         fin = finance.get_finance()
     
     print_header('Stocks', '$')
@@ -178,8 +193,7 @@ def show_finance(fin):
     if 'CLOSED' in fin['market_message'].upper():
         slowp(fin['market_message'], wrap_width=LINE_WIDTH)
     else:
-        slowp('As of ', end='')
-        print(fin['fetched_on'])
+        slowp(f"As of {sp.format_time(fin['fetched_on'])}")
     
     for i in fin['indexes']:
         slown()
@@ -198,8 +212,7 @@ def show_weather(wx, forecast_periods=WX_MAX_PERIODS):
     if (wx is None
         or now - wx['fetched_on'] >= WX_REFRESH_FETCH
         or now - wx['last_update_dt'] >= WX_REFRESH_UPDATE):
-        slowp('[Checking for Weather Updates]')
-        slown(SEGMENT_DELAY)
+        print_update_msg('Checking for Weather Updates')
         wx = weather.get_weather(WX_LAT, WX_LON, WX_LOCATION)
         
     slowp(f'Weather at {wx["location"]}')
@@ -235,18 +248,18 @@ def show_weather(wx, forecast_periods=WX_MAX_PERIODS):
 
 
 def show_news(news, items_at_a_time=NEWS_ITEMS_AT_A_TIME, max_items=NEWS_MAX_ITEMS, headlines=False):
+
+    # Check for refresh
+    if news is None or dt.datetime.now() - news['fetched_on'] >= NEWS_REFRESH:
+        slown()
+        print_update_msg('Getting Latest News')
+        news = ap_news.get_news()
+        
     if headlines:
         print_header('AP News Headlines', '!')
     else:
         print_header('AP News Summaries', '!')
-        
-    # Check for refresh
-    if news is None or dt.datetime.now() - news['fetched_on'] >= NEWS_REFRESH:
-        slown()
-        slowp('[Getting Latest News]')
-        slown(SEGMENT_DELAY)
-        news = ap_news.get_news()
-    
+
     if headlines:
         # Headlines always start with first item. They don't cycle.
         start_index = 0
@@ -273,14 +286,14 @@ def show_news(news, items_at_a_time=NEWS_ITEMS_AT_A_TIME, max_items=NEWS_MAX_ITE
 
 
 def show_iss(iss, max_sightings=ISS_MAX_SIGHTINGS):
-    print_header('Spot the Station', '>', '<')
-    slown()
     
     # Generate or refresh object?
     if iss is None or dt.datetime.now() - iss['fetched_on'] >= ISS_REFRESH:
-        slowp('[Updating Station Data]')
-        slown(SEGMENT_DELAY)
+        print_update_msg('Updating Station Data')
         iss = spot_the_station.get_sightings(ISS_COUNTRY, ISS_REGION, ISS_CITY)
+    
+    print_header('Spot the Station', '>', '<')
+    slown()
     
     # Exit early if nothing to show
     sightings = iss['sightings']
