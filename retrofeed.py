@@ -66,7 +66,7 @@ FIN_REFRESH = dt.timedelta(minutes=13)
 
 # Order of segments in the overall loop
 # See loop in main() at end of file for possible options
-SEGMENTS = ['FINANCE', 'DATE_TIME+',
+SEGMENTS = ['DATE_TIME+',
             'WX_FULL',
             'DATE_TIME',
             'NEWS_FULL',
@@ -88,7 +88,6 @@ SEGMENTS = ['FINANCE', 'DATE_TIME+',
             
             'FINANCE',
            ]
-
 
 
 ###############################################################################
