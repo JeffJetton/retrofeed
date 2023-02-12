@@ -2,9 +2,9 @@
 
 ## Initial Steps
  
-Set up your Pi with both ssh and wi-fi on and configured. You'll be making a lot of tweaks, so I'd recommend doing this with a fresh install on a new SD card. You can use the "gear" button (or type ctrl-shift-X) in Rasperry Pi Imager to pre-configure a lot of this at imaging time.
+Set up your Pi with both ssh and wi-fi on and configured. You'll be making a lot of tweaks, so I'd recommend doing this with a fresh install on a new SD card. You can use the "gear" button (or type ctrl-shift-X) in Raspberry Pi Imager to pre-configure a lot of this at imaging time.
 
-While having the full desktop is nice, you can get away with just installing the "Lite" verison of the OS without it.
+While having the full desktop is nice, you can get away with just installing the "Lite" version of the OS without it.
 
 >Note that the changes outlined below generally won't take effect until your next restart (`sudo shutdown -r now` or `sudo reboot`).
 
@@ -12,7 +12,7 @@ While having the full desktop is nice, you can get away with just installing the
 
 Your Pi will need to send video using the composite output. On most modern Pis, this uses the so-called "audio" port and requires a special cable or adapter. Pretty much any commercially-available cable with a tip-ring-ring-sleeve 1/8" (3.5mm) plug on one end and three 1/4" RCA plugs on the other should do the job. These can be found for under 10USD. If you get the kind that is designed for camcorders, they'll do the job, although they're wired a bit differently: The Pi's video signal will actually come out the "audio right" plug (which is usually red).
   
-To switch on composite output, launch Raspi-Config from the commmand line:
+To switch on composite output, launch Raspi-Config from the command line:
 
 `sudo raspi-config`
 
