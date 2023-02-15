@@ -15,7 +15,7 @@ def get_headline(s):
         return None
     pos -= 2
     s = s[0:pos]
-    return sp.clean_chars(s)
+    return sp.strip_tags(sp.clean_chars(s))
 
 
 def get_summary(s):
