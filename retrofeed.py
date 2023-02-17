@@ -8,6 +8,7 @@ import time
 
 # Retrofeed imports
 import ap_news
+import bitcoin 
 import finance
 import spot_the_station
 import string_processing as sp
@@ -18,7 +19,7 @@ import weather
 # Globals... Sooo many globals :-O
 # (Might be nice to read these from a config file or something?)
 
-VERSION = '0.1.2'
+VERSION = '0.1.3'
 
 # Use faster timings if there are any command-line args at all
 if len(sys.argv) == 1:
@@ -64,6 +65,9 @@ ISS_REFRESH = dt.timedelta(hours=12)
 FIN_REFRESH = dt.timedelta(minutes=13)
 # TODO: Have one refresh time for trading hours, another for after
 
+# Bitcoin setting
+BITCOIN_REFRESH = dt.timedelta(minutes=10)  # Avg 10 minutes per bitcoin block
+
 # Order of segments in the overall loop
 # See loop in main() at end of file for possible options
 SEGMENTS = ['DATE_TIME+',
@@ -74,9 +78,9 @@ SEGMENTS = ['DATE_TIME+',
             'WX_ONE_FCAST',
             'DATE_TIME',
             'NEWS_FULL',
-            
+
             'ISS',
-            
+
             'DATE_TIME+',
             'WX_FULL',
             'DATE_TIME',
@@ -85,8 +89,9 @@ SEGMENTS = ['DATE_TIME+',
             'WX_ONE_FCAST',
             'DATE_TIME',
             'NEWS_FULL',
-            
+
             'FINANCE',
+            'BITCOIN',
            ]
 
 
@@ -331,6 +336,30 @@ def show_quiz():
     slowp('Yes. Yes it would')
 
 
+def show_bitcoin(bit):
+    # Grab new bitcoin data if timer has elasped
+    if bit is None or dt.datetime.now() - bit['fetched_on'] >= BITCOIN_REFRESH:
+        print_update_msg('Getting Bitcoin Statistics')
+        bit = bitcoin.get_bitcoin()
+
+    # Format for readability
+    difficulty = float(bit["difficulty"])    
+    totalcirc = "{:,}".format(int(bit["totalbc"]) // 100_000_000)
+
+    print_header('BITCOIN STATISTICS', '*')
+    slown()
+    slowp(f'As of {bit["fetched_on"].strftime("%b %d %Y %I:%M %p")}')
+    slown()
+    slowp(f'    USD Price       {bit["usd_price"]}')
+    slown()
+    slowp(f'    Blockheight     {bit["blockheight"]}')
+    slowp(f'    Difficulty      {difficulty}')
+    slowp(f'    Block Reward    {bit["bcperblock"]}')
+    slowp(f'    Avg TXs/Block   {bit["avgtxnumber"]}')
+    slowp(f'    Total Bitcoin   {totalcirc}')
+    slown()
+    return bit
+
 
 def show_title():
     os.system('clear')
@@ -352,6 +381,7 @@ def main():
     iss = None
     news = None
     wx = None
+    bit = None
 
     # Main loop
     while True:
@@ -382,6 +412,8 @@ def main():
                 iss = show_iss(iss)
             elif segment == 'QUIZ':
                 show_quiz()
+            elif segment == 'BITCOIN':
+                bit = show_bitcoin(bit)
             else:
                 slown()
                 print_header(f'Missing Segment "{segment}"', '*')
