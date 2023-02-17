@@ -209,7 +209,7 @@ def show_weather(wx, forecast_periods=WX_MAX_PERIODS):
     now = dt.datetime.now()
     if (wx is None
         or now - wx['fetched_on'] >= WX_REFRESH_FETCH
-        or now - wx['last_update_dt'] >= WX_REFRESH_UPDATE):
+        or ('last_update_dt' in wx and now - wx['last_update_dt'] >= WX_REFRESH_UPDATE)):
         print_update_msg('Checking for Weather Updates')
         wx = weather.get_weather(WX_LAT, WX_LON, WX_LOCATION)
         
