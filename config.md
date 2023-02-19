@@ -61,8 +61,8 @@ Edit `/boot/config.txt` and add the lines below somewhere in it.
 ```
 overscan_left=34
 overscan_right=30
-overscan_top=-16
-overscan_bottom=-8
+overscan_top=-24
+overscan_bottom=-10
 
 sdtv_mode=0
 sdtv_aspect=1
