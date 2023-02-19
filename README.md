@@ -10,4 +10,8 @@ See [config.md](https://github.com/JeffJetton/retrofeed/blob/main/config.md) for
 
 Currently this is just doing some very clumsy web-scraping, with refreshes at certain intervals. Expect the scrapers to break at some point, if they're not already broken by the time you read this. One could also use RSS feeds and/or publicly-available APIs, of course.
 
+### Contribution Policy
+
+My intention with RetroFeed was just to make simple, personal hobby project and then move on to other things. So while it is Open Source, it is not currently open to contributions. Feel free to fork this repo and go nuts though!
+
 ![Weather, Space Station, and Stock displays](./img/samples.jpg)
