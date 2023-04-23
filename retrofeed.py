@@ -1,393 +1,220 @@
 # Standard library imports
 import datetime as dt
+import importlib.util
 import os
-import random
 import sys
 import textwrap as tw
 import time
 
-# Retrofeed imports
-import ap_news
-import finance
-import spot_the_station
-import string_processing as sp
-import weather
+# RetroFeed imports
+from display import Display
 
 
 
-# Globals... Sooo many globals :-O
-# (Might be nice to read these from a config file or something?)
+# Globals...
+VERSION = '0.2.0'
+EXPECTED_TABLES = ['display', 'segments', 'playlist']
 
-VERSION = '0.1.2'
+# The config dictionary sets all parameters, specifies segments to use, and display order
+# Eventually this will be read in from a config.toml file, but I'm waiting until the
+# standard Rasperry Pi OS install includes Python 3.11 (which has tomllib)
+CONFIG = {'display': {'height': 24,
+                      'width': 40,
+                      'cps': 20,
+                      'newline_cps': 100,
+                      'beat_seconds': 1,
+                      'force_uppercase': True,
+                      'verbose_updates': True,
+                      '24hr_time':True,
+                      'show_intros':True,
+                     },
 
-# Use faster timings if there are any command-line args at all
-if len(sys.argv) == 1:
-    SEGMENT_DELAY = 6          # Time between major segments
-    SUBSEGMENT_DELAY = 1       # If a segment has multiple identical items, time between those
-    PRINT_DELAY = 0.05         # Time between normally-printed characters
-    NEWLINE_DELAY = 0.01       # Time between characters when doing a slow newline
-    QUIZ_TIMER_DELAY = 0.2     # Time between LINE_WIDTH asterisks during quiz
-else:
-    print('(fast mode)')
-    SEGMENT_DELAY = 1
-    SUBSEGMENT_DELAY = 0.25
-    PRINT_DELAY = 0.001
-    NEWLINE_DELAY = 0.001
-    QUIZ_TIMER_DELAY = 0.03
+          # Segment modules must be declared and given a name (key) before use.
+          # Each must have at least a 'module' value specifying a .py file in
+          # the 'segments' directory.  Other keys/values depend on the segment.
+          'segments': {'otd': {'module': 'wiki_on_this_day.py'},
+                       'lucky': {'module': 'lucky_numbers.py'},
+                       'nash_wx': {'module': 'us_weather.py',
+                                   'refresh': 15,
+                                   'lat': 36.118542,
+                                   'lon': -86.798358,
+                                   'location': 'Nashville Intl Airport (BNA)'},
+                       # Example of declaring a segment module twice, with a
+                       # different name (key) and different initialization
+                       # parameters.  Also note that the ".py" at the end of a
+                       # segment module's name is optional and can be dropped.
+                       'bos_wx': {'module': 'us_weather',
+                                  'refresh': 30,
+                                  'lat': 42.365738,
+                                  'lon': -71.017027,
+                                  'location': 'Boston Logan Intl Airport'},
+                       'news': {'module': 'ap_news'},
+                       'iss': {'module': 'spot_the_station', 'country':'United_States', 'region':'Tennessee', 'city':'Nashville'},
+                       'fin': {'module': 'yahoo_finance'},
+                       'datetime': {'module': 'date_time.py'}
+                      },
 
-LINE_WIDTH = 40
-VERBOSE_UPDATES = True     # Display a message when refreshing segment data?
+          # Segment names in the 'order' part of the playlist must match the
+          # names (keys) given above.  They can either be a string by itself,
+          # or a two-element list with the name (string) as the first element
+          # and a dictionary of format specifications as the second.
+          'playlist': {'segment_pause': 6,
+                       'order': ['datetime',
+                                 'nash_wx',
+                                 'datetime',
+                                 'news',
+                                 'otd',
+                                 'datetime',
+                                 'fin',
+                                 # Ask datetime to use a slightly different
+                                 # format for this showing...
+                                 ['datetime', {'format': 'short'}],
+                                 'iss',
+                                 'datetime',
+                                 # Use abbreviated forecase for Boston
+                                 ['bos_wx', {'forecast_periods':1}],
+                                 'datetime',
+                                 'news',
+                                 'datetime',
+                                 'lucky',
+                                 'otd',
+                                ]
+                      }
+         }
 
-# Weather settings.  Current conditions update every hour, but hazards/forecasts may
-# change more frequently, so we use two different refresh intervals.
-WX_MAX_PERIODS = 5         # Max forecast periods to show during full weather display
-WX_LAT = 36.118542
-WX_LON = -86.798358
-WX_LOCATION = 'Nashville Intl Airport (BNA)'  # Overrides location from web page
-WX_REFRESH_FETCH = dt.timedelta(minutes=22)   # Refresh interval based on 'fetched_on'
-WX_REFRESH_UPDATE = dt.timedelta(minutes=65)  # Refresh interval based on 'last_update_dt'
 
-# News settings
-NEWS_ITEMS_AT_A_TIME = 3    # Number of news items to show during one NEWS_FULL segment
-NEWS_MAX_ITEMS = 15         # Point after which news items start back at top
-NEWS_MAX_HEADLINES = 15     # How many to show when just showing headlines
-NEWS_REFRESH = dt.timedelta(minutes=19)
 
-# ISS (Spot-the-Station) settings
-ISS_COUNTRY = 'United_States'
-ISS_REGION = 'Tennessee'
-ISS_CITY = 'Nashville'
-ISS_MAX_SIGHTINGS = 3
-ISS_REFRESH = dt.timedelta(hours=12)
-
-# Finance setting
-FIN_REFRESH = dt.timedelta(minutes=13)
-# TODO: Have one refresh time for trading hours, another for after
-
-# Order of segments in the overall loop
-# See loop in main() at end of file for possible options
-SEGMENTS = ['DATE_TIME+',
-            'WX_FULL',
-            'DATE_TIME',
-            'NEWS_FULL',
-            'DATE_TIME',
-            'WX_ONE_FCAST',
-            'DATE_TIME',
-            'NEWS_FULL',
+def check_config_tables(config):
+    # Just throw an error if any of the main three sections aren't in config
+    # Nothing fancy...
+    missing_tables = []
+    for table in EXPECTED_TABLES:
+        if table not in config:
+            missing_tables.append(table)
+    if len(missing_tables) > 0:
+        raise RuntimeError('Table(s) missing in config: ' + ', '.join(missing_tables))
+    # Make sure each declared segment has at least a module key
+    bad_segments = []
+    for key in config['segments']:
+        if 'module' not in config['segments'][key]:
+            bad_segments.append(key)
+    if len(bad_segments) > 0:
+        raise RuntimeError('No module defined for segment(s) in config: ' + ', '.join(bad_segments))
             
-            'ISS',
-            
-            'DATE_TIME+',
-            'WX_FULL',
-            'DATE_TIME',
-            'NEWS_FULL',
-            'DATE_TIME',
-            'WX_ONE_FCAST',
-            'DATE_TIME',
-            'NEWS_FULL',
-            
-            'FINANCE',
-           ]
 
 
-###############################################################################
+def override_timings(config):
+    config['display']['cps'] = 1000
+    config['display']['newline_cps'] = 1000
+    config['display']['beat_seconds'] = 0.1
+    config['playlist']['segment_pause'] = 1
+    return config
+
+
+
+def instantiate_segments(config, d):
+    # Segments dictionary holds references to all instantiated objects
+    segments = {}
+    # This just keeps track of unique modules already instantiated,
+    # so we only call show_intro() once per module
+    instantiated = []
+    # Go through config and initialize all required segments
+    # We don't check to see if they exist, so... fingers crossed!
+    for key in config['segments']:
+        mod_name = config['segments'][key]['module']
+        # Just in case the user put the .py on the end...
+        if mod_name.endswith('.py'):
+            mod_name = mod_name[0:-3]
+        # Import, instantiate, and add to segments dictionary
+        # using the specified key (which will match in playlist)
+        module = importlib.import_module('segments.' + mod_name)
+        segments[key] = module.Segment(d, config['segments'][key])
+        # If we haven't already, give module chance to introduce itself
+        if mod_name not in instantiated:
+            if d.show_intros:
+                segments[key].show_intro()
+            instantiated.append(mod_name)
+    return segments
+
+
+def parse_seg_key_and_fmt(seg):
+    # If the segment is just a plain-old string,
+    # use that as the key and assume no formatting
+    seg_key = ''
+    seg_fmt = {}
+    if isinstance(seg, str):
+        seg_key = seg
+    # But if it's a list, use the first element as key
+    # and second element (if any) as format stuff
+    elif isinstance(seg, list):
+        seg_key = seg[0]
+        if len(seg) > 1:
+            seg_fmt = seg[1]
+    return (seg_key, seg_fmt)
     
     
-# Slow Print -- Similar to print() but with fun options
-#               Wraps words at wrap_width characters if it is non-zero
-def slowp(s='', end='\n', ucase=True, delay=PRINT_DELAY, wrap_width=0):
-    if wrap_width > 0:
-        lines = tw.wrap(s, wrap_width)
-        # Call self for each line, but with wrapping off...
-        for line in lines:
-            slowp(line, end=end, ucase=ucase, delay=delay, wrap_width=0)
-        return
-    for c in s:
-        if ucase:
-            c = c.upper()
-        print(c, end='', flush=True)
-        time.sleep(delay) 
-    print(end, end='', flush=True)
-    time.sleep(delay)
-
-
-
-# Slow Newline - Prints n spaces with a delay, then returns
-#                Picks a random position to pause to stave off
-#                screen burn-in (default = 0 = no pause)
-def slown(pause_time=0, n=LINE_WIDTH, delay=NEWLINE_DELAY, final_delay=PRINT_DELAY):
-    pause_pos = random.randrange(n)
-    for i in range(n):
-        print(' ', end='', flush=True)
-        time.sleep(delay)
-        if i == pause_pos:
-            time.sleep(pause_time)
-    print(flush=True)
-    time.sleep(final_delay)
-
-
-
-# Display the passed string as a segment header, surrounded by markers
-def print_header(s, left_marker=' ', right_marker=None):
-    if right_marker is None:
-        right_marker = left_marker
-    s = s.strip().upper()
-    num_markers = 0
-    if len(s) + 4 < LINE_WIDTH:
-        num_markers = int((LINE_WIDTH - 4 - len(s)) / 2)
-    slowp(left_marker * num_markers, end='')
-    slowp('  ' + s + '  ', end='')
-    slowp(right_marker * num_markers, end='')
-    slowp()
-
-
-# Display passed string as an "updating..." message
-def print_update_msg(m):
-    if VERBOSE_UPDATES:
-        slowp(f'[{m}', end='')
-        for i in range(3):
-            time.sleep(SUBSEGMENT_DELAY)
-            slowp('.', end='')
-        time.sleep(SUBSEGMENT_DELAY)
-        slowp(']')
-        slown()
-        #slown(SEGMENT_DELAY)
-
-
-
-def show_date_time(descriptive=False):
-    now = dt.datetime.now()
-    date_text = now.strftime("%A, %B ")
-    day_num = now.day
-    date_text += str(day_num)
-    if day_num in (1, 21, 31):
-        date_text += 'st'
-    elif day_num in (2, 22):
-        date_text += 'nd'
-    elif day_num in (3, 23):
-        date_text += 'rd'
-    else:
-        date_text += 'th'
-    time_text = sp.format_time(now)
-    if descriptive:
-        slowp('It is ' + date_text)
-        slowp('Current time is ' + time_text)
-    else:
-        slowp(time_text + ' ' + date_text)
-
-
-
-def show_finance(fin):
-    
-    # Check financials?
-    now = dt.datetime.now()
-    if fin is None or now - fin['fetched_on'] >= FIN_REFRESH:
-        print_update_msg('Updating Financial Data')
-        fin = finance.get_finance()
-    
-    print_header('Stocks', '$')
-    slown()
-        
-    if 'CLOSED' in fin['market_message'].upper():
-        slowp(fin['market_message'], wrap_width=LINE_WIDTH)
-    else:
-        slowp(f"As of {sp.format_time(fin['fetched_on'])}")
-    
-    for i in fin['indexes']:
-        slown()
-        slowp(f"    {i['name']:9}  {i['price']:>9}", wrap_width=LINE_WIDTH)
-        slowp(f"               {i['delta']:>9}  {i['delta_pct']}", wrap_width=LINE_WIDTH)
-        
-    return fin
-
-
-
-
-def show_weather(wx, forecast_periods=WX_MAX_PERIODS):
-    
-    # Get new weather object?
-    now = dt.datetime.now()
-    if (wx is None
-        or now - wx['fetched_on'] >= WX_REFRESH_FETCH
-        or ('last_update_dt' in wx and now - wx['last_update_dt'] >= WX_REFRESH_UPDATE)):
-        print_update_msg('Checking for Weather Updates')
-        wx = weather.get_weather(WX_LAT, WX_LON, WX_LOCATION)
-        
-    slowp(f'Weather at {wx["location"]}')
-    slowp(f'As of {wx["last_update"]}')
-    
-    if len(wx['hazards']) > 0:
-        for hazard in wx['hazards']:
-            slown()
-            slowp('!!! ' + hazard, wrap_width=LINE_WIDTH)
-            
-    slown()
-    slowp(f'    Conditions   {wx["currently"]}')
-    slowp(f'    Temperature  {wx["temp_f"]} ({wx["temp_c"]})')
-    slowp(f'    Wind         {wx["wind_speed"]}')
-    slowp(f'    Visibility   {wx["visibility"]}')
-    slowp(f'    Dewpoint     {wx["dewpoint"]} {wx["comfort"]}')
-
-    forecast_periods == min(forecast_periods, len(wx['periods']))
-    if forecast_periods > 0:
-        slown(SUBSEGMENT_DELAY)
-        if forecast_periods > 1:
-            slown()
-            print_header('Extended Forecast...', '*')
-
-        for period in wx['periods'][0:forecast_periods]:
-            slown(SUBSEGMENT_DELAY)
-            if forecast_periods > 1:
-                slowp(period['timeframe'])
-            slowp(period['forecast'], wrap_width=LINE_WIDTH)
-            
-    return wx
-
-
-
-def show_news(news, items_at_a_time=NEWS_ITEMS_AT_A_TIME, max_items=NEWS_MAX_ITEMS, headlines=False):
-
-    # Check for refresh
-    if news is None or dt.datetime.now() - news['fetched_on'] >= NEWS_REFRESH:
-        slown()
-        print_update_msg('Getting Latest News')
-        news = ap_news.get_news()
-        
-    if headlines:
-        print_header('AP News Headlines', '!')
-    else:
-        print_header('AP News Summaries', '!')
-
-    if headlines:
-        # Headlines always start with first item. They don't cycle.
-        start_index = 0
-        end_index = min(items_at_a_time, max_items)
-    else:
-        # Restart item index?
-        if news['item_index'] >= max_items or news['item_index'] >= len(news['items']):
-            news['item_index'] = 0
-        start_index = news['item_index']
-        end_index = min(start_index + items_at_a_time, len(news['items']))
-
-    for item in news['items'][start_index:end_index]:
-        if not headlines:
-            slown()
-        slown(SUBSEGMENT_DELAY)
-        slowp(item['headline'], wrap_width=LINE_WIDTH)
-        if not headlines:
-            slown()
-            slowp(item['summary'], wrap_width=LINE_WIDTH)
-            news['item_index'] += 1
-            
-    return news
-
-
-
-def show_iss(iss, max_sightings=ISS_MAX_SIGHTINGS):
-    
-    # Generate or refresh object?
-    if iss is None or dt.datetime.now() - iss['fetched_on'] >= ISS_REFRESH:
-        print_update_msg('Updating Station Data')
-        iss = spot_the_station.get_sightings(ISS_COUNTRY, ISS_REGION, ISS_CITY)
-    
-    print_header('Spot the Station', '>', '<')
-    slown()
-    
-    # Exit early if nothing to show
-    sightings = iss['sightings']
-    if len(sightings) == 0:
-        slowp('No ISS Sightings Available')
-        return
-
-    slowp(iss['location'])
-    slowp('Upcoming ISS Sightings:')
-    num_shown = 0
-    cutoff_dt = dt.datetime.now()
-    for s in sightings:
-        if s['date_time'] >= cutoff_dt and num_shown < max_sightings:
-            slown(SUBSEGMENT_DELAY)
-            slowp(f"    {s['date_text']} @ {s['time_text']}")
-            slowp(f"      Visible for {s['visible']}")
-            slowp(f"      Max height {s['max_height']} Degrees")
-            slowp(f"      From {s['appears']}")
-            slowp(f"      To   {s['disappears']}")
-            num_shown += 1
-
-    return iss
-
-
-
-def show_quiz():
-    # TODO: State/country capitols, presidents, periodic table stuff, etc.?
-    print_header('Quiz Goes Here', '?')
-    slown()
-    slowp("Wouldn't it be cool to implement some sort of quiz?", wrap_width=LINE_WIDTH)
-    slown()
-    for i in range(0, LINE_WIDTH):
-        print('?', end='', flush=True)
-        time.sleep(QUIZ_TIMER_DELAY)
-    slowp()
-    slown()
-    slowp('Yes. Yes it would')
-
-
-
-def show_title():
+def show_title(d):
     os.system('clear')
     for i in range(24):
         print()
-    slowp(f'RETROFEED - VERSION {VERSION}')
-    slowp('Copyright (C) Jeff Jetton')
-    slown()
-    slown()
+    d.print(f'RETROFEED - VERSION {VERSION}')
+    d.print('Copyright (c) 2023 Jeff Jetton')
+    d.print('MIT License')
+    d.newline()
 
 
+###############################################################################
 
 def main():
 
-    show_title()
+    # TODO: read in config from toml file once Python 3.11 is standard on Pis
+    #       Until then, we'll pull it in from a big honkin' global
+    config = CONFIG
 
-    # Segment objects are generated by first call to their "show_" functions
-    fin = None
-    iss = None
-    news = None
-    wx = None
+    check_config_tables(config)
 
+    # Override with faster timings if there are any command-line args at all
+    if len(sys.argv) > 1:
+        config = override_timings(config)
+
+    # Create Display object from config settings
+    # This will be used by all segments
+    d = Display(config['display'])
+
+    # Segment modules may display intros on initialization,
+    # but we want the main title to come first
+    if d.show_intros:
+        show_title(d)
+    segments = instantiate_segments(config, d)
+
+    # Unpack the playlist
+    segment_pause = config['playlist']['segment_pause']
+    order = config['playlist']['order']
+    
+    d.newline()
+    d.newline()
+    
     # Main loop
     while True:
-        for segment in SEGMENTS:
-            slown()
-            slown()
+        
+        for seg in order:
+            d.newline()
+            d.newline()
+
+            (seg_key, seg_fmt) = parse_seg_key_and_fmt(seg)
+
+            if seg_key not in segments:
+                d.newline()
+                d.print_header(f'Missing Segment "{seg_key}"', '*')
+                d.newline(segment_pause)
+                continue
             
-            # Show appropriate segment
-            if segment == 'DATE_TIME':
-                show_date_time()
-            elif segment == 'DATE_TIME+':
-                show_date_time(True)
-            elif segment == 'FINANCE':
-                fin = show_finance(fin)
-            elif segment == 'WX_FULL':
-                wx = show_weather(wx)
-            elif segment == 'WX_NO_FCAST':
-                wx = show_weather(wx, 0)
-            elif segment == 'WX_ONE_FCAST':
-                wx = show_weather(wx, 1)
-            elif segment == 'NEWS_FULL':
-                news = show_news(news)
-            elif segment == 'NEWS_ONE_ITEM':
-                news = show_news(news, 1)
-            elif segment == 'NEWS_HLINES':
-                news = show_news(news, NEWS_MAX_HEADLINES, headlines=True)
-            elif segment == 'ISS':
-                iss = show_iss(iss)
-            elif segment == 'QUIZ':
-                show_quiz()
-            else:
-                slown()
-                print_header(f'Missing Segment "{segment}"', '*')
-                
-            slown()
-            slown(SEGMENT_DELAY)
+            # Show the segment, with any special formating
+            segments[seg_key].show(seg_fmt)
+            
+            d.newline()
+            d.newline(segment_pause)
+
         
 
 
