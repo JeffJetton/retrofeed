@@ -182,17 +182,28 @@ If your monitor is monochrome...
 
 ## Running RetroFeed
 
-### Transferring Files
+### Getting the Files onto Your Pi
 
-If you've downloaded the Python files directly onto your Pi, from the Pi, you won't need this step. But if they're on your main computer, transfer them over using `scp`. Here's an example that assumes:
+The easiest and quickest way to get RetroFeed onto your Pi is probably to just pull down a ZIP file of the full repo from Git. From the terminal (or via ssh), navigate to the directory you want the RetroFeed directory to live in, then run this:
 
-* Your Pi's hostname is the default `raspberrypi`
-* You have a directory in your user directory called `retrofeed`
-* You're in the retrofeed directory on the computer you're transferring from, with all the `.py` python files in it
+```
+wget https://github.com/JeffJetton/retrofeed/archive/refs/heads/main.zip
+```
+Unzip the ZIP file, rename the resulting directory, and (optionally) delete the ZIP file:
 
-`scp  *.py  pi@raspberrypi.local:~/retrofeed`
+```
+unzip main.zip
+mv retrofeed-main retrofeed
+rm main.zip
+```
 
-Obviously, you'll need to adjust accordingly if your situation is different.  The `.local` may or may not be necessary, depending on how you have it set up.
+If you have git installed on your Pi, you can of course just clone the repo that way.
+
+If you've downloaded the files onto your primary computer (perhaps to write your own segment), you can selectively send them from there over to your Pi using scp:
+
+`scp  [local file(s)]  [pi username]@[pi hostname].local:~/retrofeed`
+
+The `.local` may or may not be necessary, depending on how you have things set up.
 
 ### Install Required Package
 
@@ -208,11 +219,13 @@ pip install beautifulsoup4
 
 ### Run it!
 
-Assuming you're in the same directory as `retrofeed.py`:
+Move into the retrofeed directory if you're not there already, then run the retrofeed.py Python script:
 
 ```
+cd retrofeed
 python retrofeed.py
 ```
+
 >If you're trying out the program on a Mac, you'll probably need to use `python3` instead of `python`.
 
 
