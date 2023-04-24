@@ -41,8 +41,11 @@ CONFIG = {'display': {'height': 24,
                                    'location': 'Nashville Intl Airport (BNA)'},
                        # Example of declaring a segment module twice, with a
                        # different name (key) and different initialization
-                       # parameters.  Also note that the ".py" at the end of a
-                       # segment module's name is optional and can be dropped.
+                       # parameters.  Note that show_intro() will only be
+                       # called when the first us_weather segment is set up,
+                       # and not a second time when this one is set up.
+                       # Also note the ".py" at the end of a segment module's
+                       # name is assumed if missing, so we can be lazy...
                        'bos_wx': {'module': 'us_weather',
                                   'refresh': 30,
                                   'lat': 42.365738,
