@@ -168,20 +168,24 @@ class Segment(SegmentParent):
                 self.data['hazards'].append(self.d.clean_chars(stripped_haz))
 
 
+    # Override to add one more stale condition
+    def data_is_stale(self):
+        # Data is always stale if (slightly) more than an hour has gone by
+        now = dt.datetime.now()
+        if 'last_update_dt' in self.data and now.astimezone() - self.data['last_update_dt'] >= dt.timedelta(minutes=62):
+            return true
+        else:
+            # Otherwise, the usual check:  Data is stale if we don't have any
+            # weather yet (self.data still None) or refresh time has elapsed:
+            return super().data_is_stale()
 
 
     def show(self, fmt):
         forecast_periods = fmt.get('forecast_periods', 5)
         if forecast_periods < 0:
             forecast_periods = 0
-        # Refresh weather if any of these happen to be the case:
-        #     - We don't have any weather yet (wx is still None)
-        #     - The weather was fetched longer ago than refresh time
-        #     - The weather has a "last update" value that is older than a bit more than an hour
-        # data_is_stale() test for the first two conditions
-        now = dt.datetime.now()
-        if (self.data_is_stale() or 
-            ('last_update_dt' in self.data and now.astimezone() - self.data['last_update_dt'] >= dt.timedelta(minutes=62))):
+
+        if self.data_is_stale():
             self.d.print_update_msg('Checking for Weather Updates')
             self.refresh_data()
 
