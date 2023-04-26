@@ -170,14 +170,15 @@ class Segment(SegmentParent):
 
     # Override to add one more stale condition
     def data_is_stale(self):
-        # Data is always stale if (slightly) more than an hour has gone by
-        now = dt.datetime.now()
-        if 'last_update_dt' in self.data and now.astimezone() - self.data['last_update_dt'] >= dt.timedelta(minutes=62):
-            return true
+        # Start witht the usual check:  Data is stale if we don't have any
+        # weather yet (self.data still None) or refresh time has elapsed:
+        if super().data_is_stale():
+            return True
         else:
-            # Otherwise, the usual check:  Data is stale if we don't have any
-            # weather yet (self.data still None) or refresh time has elapsed:
-            return super().data_is_stale()
+            # Data is always stale if (slightly) more than an hour has gone by
+            now = dt.datetime.now()
+            return 'last_update_dt' in self.data and now.astimezone() - self.data['last_update_dt'] >= dt.timedelta(minutes=62)
+
 
 
     def show(self, fmt):
