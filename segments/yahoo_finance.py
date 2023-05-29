@@ -87,6 +87,8 @@ class Segment(SegmentParent):
         if soup is None:
             return
         msg = soup.find('span', {'data-id':'mk-msg'})
+        if msg is None:
+            return
         if len(msg) > 0:
             self.data['market_message'] = self.d.clean_chars(msg.contents[0])
         streamers = soup.find_all('fin-streamer')
@@ -108,7 +110,10 @@ class Segment(SegmentParent):
             self.d.print(self.data['market_message'])
         else:
             self.d.print(f"As of {self.d.fmt_time_text(self.data['fetched_on'])}")
-    
+
+        if len(self.data['indexes']) == 0:
+            self.d.print("No data available")
+
         for i in self.data['indexes']:
             self.d.newline()
             self.d.print(f"    {i['name']:9}  {i['price']:>9}")
