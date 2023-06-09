@@ -27,7 +27,11 @@ class Segment(SegmentParent):
     symbols = {'^GSPC':'S&P 500',
                '^DJI' :'Dow Jones',
                '^IXIC':'NASDAQ',
-               '^RUT' :'Russell'
+               '^RUT' :'Russell',
+               'ES=F' :'S&P Futures',
+               'YM=F' :'Dow Futures',
+               'NQ=F' :'NASDAQ Fut',
+               'RTY=F':'Russell Fut'
               }
     
     def __init__(self, display, init):
@@ -80,17 +84,11 @@ class Segment(SegmentParent):
     
     def refresh_data(self):
         self.data = {'fetched_on':dt.datetime.now(),
-                     'market_message':'',
                      'indexes':[],
                     }
         soup = self.get_soup('https://finance.yahoo.com')
         if soup is None:
             return
-        msg = soup.find('span', {'data-id':'mk-msg'})
-        if msg is None:
-            return
-        if len(msg) > 0:
-            self.data['market_message'] = self.d.clean_chars(msg.contents[0])
         streamers = soup.find_all('fin-streamer')
         self.data['indexes'] = self.parse_indexes(streamers)
         self.data['indexes'] = self.process_indexes(self.data['indexes'])
@@ -105,17 +103,14 @@ class Segment(SegmentParent):
 
         self.d.print_header('Stocks', '$')
         self.d.newline()
-        
-        if 'CLOSED' in self.data['market_message'].upper():
-            self.d.print(self.data['market_message'])
+
+        if len(self.data['indexes']) == 0:
+            self.d.print("No market data available")
         else:
             self.d.print(f"As of {self.d.fmt_time_text(self.data['fetched_on'])}")
 
-        if len(self.data['indexes']) == 0:
-            self.d.print("No data available")
-
         for i in self.data['indexes']:
             self.d.newline()
-            self.d.print(f"    {i['name']:9}  {i['price']:>9}")
-            self.d.print(f"               {i['delta']:>9}  {i['delta_pct']}")
+            self.d.print(f"    {i['name']:11}  {i['price']:>9}")
+            self.d.print(f"                    {i['delta_pct']}")
 
