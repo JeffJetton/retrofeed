@@ -7,12 +7,10 @@
 #   - Takes no initialization, takes no formatting
 #   - Creates a series of pseudorandom numbers based on the computer's MAC
 #     address and the current local date, so you get the same lucky numbers
-#     everytime you use this on a given day, but usually different from numbers
-#     other people might get that day on their own Pi
-#   - The numbers are picked to be compatible with the rules of both Powerball
-#     and MegaMillions lotteries in the U.S., in case you want to risk a few
-#     dollars.  (But of course they're completely random and have no better
-#     chance of winning than any other set of numbers, so good luck with that.)
+#     each time you use this on a given day, but usually different from numbers
+#     other people might get that day on their own computer.
+#
+#   ***  Disclaimer: Luckiness of Lucky Numbers is Not Guaranteed!  :-)
 #
 #   Jeff Jetton, February 2023
 #
@@ -26,29 +24,6 @@ import uuid
 
 # Class name should always be "Segment" and should always inherit SegmentParent
 class Segment(SegmentParent):
-    
-    def __init__(self, display, init):
-        # All segment initializers must take a reference to a Display object
-        # first, and then an optional dictionary containing any initialization parameters
-        # In this case, we're not using any initialization parameters, so we ignore init.
-        # (But we still have to have the parameter for it in the method declaration!)
-        # SegmentParent provides a useful __init__, but since we're not storing
-        # any persistent data, we don't even need to use that.
-        self.d = display
-
-
-    def show_intro(self):
-        # All segments must have a show_intro() method, which is called just
-        # after the segment is instantiated.  You don't have to do anything in
-        # this method, but you do have to at least have it.
-        #    - It's designed to give the module a chance to display credits,
-        #      disclaimers, copyright info, etc.
-        #    - It has no parameters other than self
-        #    - If the user has configured RetroFeed to create multiple
-        #      instances of this segment, show_intro() will only be called
-        #      after the first one, so intros display only once per module.
-        self.d.print('Disclaimer: Luckiness of Lucky Numbers is not guaranteed')
-
 
     def get_lucky_numbers(self):
         # Get the number of days since Jan 1, 1970 (local)
@@ -72,7 +47,7 @@ class Segment(SegmentParent):
 
 
     def show(self, fmt):
-        # All segments must have a show() method, which is called by
+        # All segments MUST have a show() method, which is called by
         # retrofeed.py when the segment comes up next in the playlist.
         # We're not providing any special formatting options, so we ignore fmt
         nums = self.get_lucky_numbers()

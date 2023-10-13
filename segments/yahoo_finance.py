@@ -16,14 +16,15 @@
 #
 ################################################################################
 
-
-
 import datetime as dt
 from segment_parent import SegmentParent
 
 
+INTRO = 'Financial info from finance.yahoo.com'
+
+
 class Segment(SegmentParent):
-    
+
     symbols = {'^GSPC':'S&P 500',
                '^DJI' :'Dow Jones',
                '^IXIC':'NASDAQ',
@@ -33,13 +34,10 @@ class Segment(SegmentParent):
                'NQ=F' :'NASDAQ Fut',
                'RTY=F':'Russell Fut'
               }
-    
+
+
     def __init__(self, display, init):
-        super().__init__(display, init, default_refresh=15)
-
-
-    def show_intro(self):
-        self.d.print('Financial info from finance.yahoo.com')
+        super().__init__(display, init, default_refresh=15, default_intro=INTRO)
 
 
     @classmethod
@@ -81,7 +79,6 @@ class Segment(SegmentParent):
         return new_ind
 
 
-    
     def refresh_data(self):
         self.data = {'fetched_on':dt.datetime.now(),
                      'indexes':[],
@@ -92,7 +89,6 @@ class Segment(SegmentParent):
         streamers = soup.find_all('fin-streamer')
         self.data['indexes'] = self.parse_indexes(streamers)
         self.data['indexes'] = self.process_indexes(self.data['indexes'])
-
 
 
     def show(self, fmt):

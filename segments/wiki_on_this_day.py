@@ -22,26 +22,24 @@ import requests
 from segment_parent import SegmentParent
 
 
+INTRO = '"On This Day" provided by Wikipedia.com'
+
+
 class Segment(SegmentParent):
-    
+
+
     def __init__(self, display, init):
-        super().__init__(display, init)
-       
-
-    def show_intro(self):
-        # No intro
-        return
-
+        super().__init__(display, init, default_intro=INTRO)
 
 
     def parse_list(self, lst):
         list_items = lst.find_all('li')
         for list_item in list_items:
-            list_item = self.d.strip_tags(list_item.text)
+         #   list_item = self.d.strip_tags(list_item.text)
+            list_item = self.d.clean_chars(list_item.get_text())
             list_item = list_item.replace(' (pictured)', '')
             list_item = list_item.replace(' (depicted)', '')
             self.data['items'].append(list_item)
-
 
 
     def refresh_data(self):
@@ -50,8 +48,6 @@ class Segment(SegmentParent):
                      'items':[]
                     }
         today = dt.date.today()
-        # For debugging...
-        #today = dt.date(2023, 3, 11)
         # Format as full month plus day-of-month w/o leading zero
         self.data['today'] = today.strftime('%B %d').replace(' 0', ' ')
         url = 'https://en.wikipedia.org/wiki/Wikipedia:Selected_anniversaries/'
@@ -68,7 +64,8 @@ class Segment(SegmentParent):
         lists = soup.find_all('ul')
         # First list only, for now (the birth/death list often has obscure names)
         self.parse_list(lists[0])
-
+        # Put in "newest to oldest" order
+        self.data['items'].reverse()
 
 
     def show(self, fmt):
@@ -97,6 +94,4 @@ class Segment(SegmentParent):
             if self.data['item_index'] >= len(self.data['items']):
                 self.data['item_index'] = 0
             items_shown += 1
-
-        
 

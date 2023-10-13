@@ -2,8 +2,7 @@
 #
 #   Segment Parent Class
 #
-#   All Segment classes should inherit from this parent class to ensure
-#   required methods are implemented.
+#   All Segment classes should inherit from this class and override show()
 #
 #   The provided methods are handy too:
 #
@@ -26,20 +25,19 @@ import datetime as dt
 import requests
 
 
-
 class SegmentParent(ABC):
     
-    def __init__(self, display, init, default_refresh=60):
+    def __init__(self, display, init, default_refresh=60, default_intro=None):
         # Remember reference to main Display object, using "d" for brevity
         self.d = display
-        # Assign refresh time (or use default if none found)
+        # Assign refresh time and intro (or use default if not found in init)
         ref = init.get('refresh', default_refresh)
-        if ref < 1:
-            ref = 1
+        ref = 1 if ref < 1 else ref
         self.refresh = dt.timedelta(minutes=ref)
-        # Fetched data is eventually encapsulated into the 'data' instance
-        # variable.  For now, we'll set it to None to indicate that we haven't
-        # done any fetching yet...
+        self.intro = init.get('intro', default_intro)
+        # Any fetched data will eventually be encapsulated into the 'data'
+        # instance variable.  But for now, we'll set it to None to indicate
+        # that we haven't done any fetching yet. 
         self.data = None
 
 
@@ -50,7 +48,8 @@ class SegmentParent(ABC):
         return self.data is None or dt.datetime.now() - self.data['fetched_on'] >= self.refresh
 
 
-    def get_soup(self, url):
+    @classmethod
+    def get_soup(cls, url):
         # Returns a parsed BeautifulSoup object from passed url, or None
         # if the HTTP request fails
         response = requests.get(url, headers={'Cache-Control': 'no-cache'})
@@ -58,16 +57,14 @@ class SegmentParent(ABC):
             return None
         return BeautifulSoup(response.text, 'html.parser')
 
-
-    @abstractmethod
-    def show_intro(self):
-        # Display credits, disclaimers, etc.  Should always be overridden,
-        # even if you don't want to display anything.
-        # Called when main program instantiates a particular segment, and
-        # only if the show_intros Display setting is True.  If a segment is
-        # defined multiple times, such as having a us_weather.py segment for
-        # several different cities, this only gets called for the first one.
-        pass
+    @classmethod
+    def clamp(cls, value, min, max):
+        # Useful for making sure user init/fmt values are within certain limits
+        if value < min:
+            return min
+        if value > max:
+            return max
+        return value
 
 
     @abstractmethod
@@ -78,5 +75,4 @@ class SegmentParent(ABC):
         # Typically, the child class will first call data_is_stale() and
         # refresh the data if needed, prior to showing anything.
         pass
-        
 

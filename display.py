@@ -30,7 +30,6 @@ class Display:
         self._force_uppercase = display_settings.get('force_uppercase', True)
         self._verbose_updates = display_settings.get('verbose_updates', True)
         self._prefer_24hr_time = display_settings.get('prefer_24hr_time', True)
-        self._show_intros = display_settings.get('show_intros', True)
         
     # Getters, but no setters (to hopefully keep other code from altering display values)
     @property
@@ -238,7 +237,7 @@ class Display:
 
     # Pulls out a few HTML tags
     @classmethod
-    def strip_tags(cls, s):
+    def strip_tags_DEPRECATED(cls, s):
         s = s.replace('\\u003c', '<')
         s = s.replace('\\"', '"')
         s = s.replace('</a>', '')
