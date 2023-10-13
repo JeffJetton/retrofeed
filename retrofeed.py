@@ -1,3 +1,28 @@
+################################################################################
+#
+#   retrofeed.py - Main entry point for running RetroFeed
+#
+#   - Reads in config.toml
+#   - Instantiates Display and Segment objects based on the config file
+#   - Cycles through the Segments and asks them to send info to standard output
+#     (via Display), in the order/manner specified in the config file
+#
+#   The initial use was to set up a Rasperry Pi to output the text to a CRT
+#   over the composite output, but of course you can use any terminal-type
+#   output/display solution.
+#
+#   Jeff Jetton
+#
+#   January-October 2023
+#
+################################################################################
+
+
+# TODO: Wikipedia should remove (Example pictured) and other photo references
+#       and be case-insensitive when doing so
+# TODO: Add library requirements to README
+
+
 # Standard library imports
 import datetime as dt
 import importlib.util
@@ -5,6 +30,7 @@ import os
 import sys
 import textwrap as tw
 import time
+import tomllib
 
 # RetroFeed imports
 from display import Display
@@ -12,78 +38,10 @@ from display import Display
 
 
 # Globals...
-VERSION = '0.2.0'
+VERSION = '1.0.0'
+COPYRIGHT_YEAR = '2023'
+CONFIG_FILENAME = 'config.toml'
 EXPECTED_TABLES = ['display', 'segments', 'playlist']
-
-# The config dictionary sets all parameters, specifies segments to use, and display order
-# Eventually this will be read in from a config.toml file, but I'm waiting until the
-# standard Rasperry Pi OS install includes Python 3.11 (which has tomllib)
-CONFIG = {'display': {'height': 24,
-                      'width': 40,
-                      'cps': 20,
-                      'newline_cps': 100,
-                      'beat_seconds': 1,
-                      'force_uppercase': True,
-                      'verbose_updates': True,
-                      '24hr_time':True,
-                      'show_intros':True,
-                     },
-
-          # Segment modules must be declared and given a name (key) before use.
-          # Each must have at least a 'module' value specifying a .py file in
-          # the 'segments' directory.  Other keys/values depend on the segment.
-          'segments': {'otd': {'module': 'wiki_on_this_day.py'},
-                       'lucky': {'module': 'lucky_numbers.py'},
-                       'nash_wx': {'module': 'us_weather.py',
-                                   'refresh': 15,
-                                   'lat': 36.118542,
-                                   'lon': -86.798358,
-                                   'location': 'Nashville Intl Airport (BNA)'},
-                       # Example of declaring a segment module twice, with a
-                       # different name (key) and different initialization
-                       # parameters.  Note that show_intro() will only be
-                       # called when the first us_weather segment is set up,
-                       # and not a second time when this one is set up.
-                       # Also note the ".py" at the end of a segment module's
-                       # name is assumed if missing, so we can be lazy...
-                       'bos_wx': {'module': 'us_weather',
-                                  'refresh': 30,
-                                  'lat': 42.365738,
-                                  'lon': -71.017027,
-                                  'location': 'Boston Logan Intl Airport'},
-                       'news': {'module': 'ap_news'},
-                       'iss': {'module': 'spot_the_station', 'country':'United_States', 'region':'Tennessee', 'city':'Nashville'},
-                       'fin': {'module': 'yahoo_finance'},
-                       'datetime': {'module': 'date_time.py'}
-                      },
-
-          # Segment names in the 'order' part of the playlist must match the
-          # names (keys) given above.  They can either be a string by itself,
-          # or a two-element list with the name (string) as the first element
-          # and a dictionary of format specifications as the second.
-          'playlist': {'segment_pause': 6,
-                       'order': ['datetime',
-                                 'nash_wx',
-                                 'datetime',
-                                 'news',
-                                 'otd',
-                                 'datetime',
-                                 'fin',
-                                 # Ask datetime to use a slightly different
-                                 # format for this showing...
-                                 ['datetime', {'format': 'short'}],
-                                 'iss',
-                                 'datetime',
-                                 # Use abbreviated forecase for Boston
-                                 ['bos_wx', {'forecast_periods':1}],
-                                 'datetime',
-                                 'news',
-                                 'datetime',
-                                 'lucky',
-                                 'otd',
-                                ]
-                      }
-         }
 
 
 
@@ -114,13 +72,11 @@ def override_timings(config):
     return config
 
 
-
 def instantiate_segments(config, d):
     # Segments dictionary holds references to all instantiated objects
     segments = {}
-    # This just keeps track of unique modules already instantiated,
-    # so we only call show_intro() once per module
-    instantiated = []
+    # Keep track of intro strings we show, so we don't show any more than once
+    shown_intros = []
     # Go through config and initialize all required segments
     # We don't check to see if they exist, so... fingers crossed!
     for key in config['segments']:
@@ -132,19 +88,22 @@ def instantiate_segments(config, d):
         # using the specified key (which will match in playlist)
         module = importlib.import_module('segments.' + mod_name)
         segments[key] = module.Segment(d, config['segments'][key])
-        # If we haven't already, give module chance to introduce itself
-        if mod_name not in instantiated:
-            if d.show_intros:
-                segments[key].show_intro()
-            instantiated.append(mod_name)
+        # If we haven't heard it already, give the module
+        # a chance to introduce itself...
+        intro = segments[key].intro
+        if intro is not None:
+            intro = intro.strip()
+            if intro != '' and intro not in shown_intros:
+                d.print(intro)
+                shown_intros.append(intro)
     return segments
 
 
 def parse_seg_key_and_fmt(seg):
-    # If the segment is just a plain-old string,
-    # use that as the key and assume no formatting
     seg_key = ''
     seg_fmt = {}
+    # If the segment is just a plain-old string,
+    # use that as the key and assume no formatting
     if isinstance(seg, str):
         seg_key = seg
     # But if it's a list, use the first element as key
@@ -154,29 +113,34 @@ def parse_seg_key_and_fmt(seg):
         if len(seg) > 1:
             seg_fmt = seg[1]
     return (seg_key, seg_fmt)
-    
-    
+
+
 def show_title(d):
     os.system('clear')
     for i in range(24):
         print()
     d.print(f'RETROFEED - VERSION {VERSION}')
-    d.print('Copyright (c) 2023 Jeff Jetton')
+    d.print(f'Copyright (c) {COPYRIGHT_YEAR} Jeff Jetton')
     d.print('MIT License')
     d.newline()
+
 
 
 ###############################################################################
 
 def main():
 
-    # TODO: read in config from toml file once Python 3.11 is standard on Pis
-    #       Until then, we'll pull it in from a big honkin' global
-    config = CONFIG
-
+    # Get config info from the TOML file
+    try:
+        with open(CONFIG_FILENAME, 'rb') as f:
+            config = tomllib.load(f)
+    except FileNotFoundError:
+        print(f'\n*** Missing configuration file "{CONFIG_FILENAME}"\n')
+        return
     check_config_tables(config)
 
     # Override with faster timings if there are any command-line args at all
+    # Handy for quickly checking segments without having to change config.toml
     if len(sys.argv) > 1:
         config = override_timings(config)
 
@@ -193,10 +157,10 @@ def main():
     # Unpack the playlist
     segment_pause = config['playlist']['segment_pause']
     order = config['playlist']['order']
-    
+
     d.newline()
     d.newline()
-    
+
     # Main loop
     while True:
         
@@ -211,14 +175,13 @@ def main():
                 d.print_header(f'Missing Segment "{seg_key}"', '*')
                 d.newline(segment_pause)
                 continue
-            
+
             # Show the segment, with any special formating
             segments[seg_key].show(seg_fmt)
-            
+
             d.newline()
             d.newline(segment_pause)
 
-        
 
 
 if __name__ == "__main__":
