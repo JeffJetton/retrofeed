@@ -21,7 +21,7 @@
 #
 #       forecast_periods  Maximum number of forecast periods, out of however
 #                         are currently available, to show after giving weather
-#                         Can be zero.  Default is 5.
+#                         Can be zero.  Default is 5, max is 15.
 #                         If it's 2 or higher, forecasts are preceeded by an
 #                         "extended forecast" header.
 #
@@ -34,6 +34,8 @@
 import datetime as dt
 from segment_parent import SegmentParent
 
+INTRO = 'Weather provided by weather.gov'
+
 
 class Segment(SegmentParent):
     
@@ -41,7 +43,7 @@ class Segment(SegmentParent):
                    'EDT':'-0400', 'CDT':'-0500', 'MDT':'-0600', 'PDT':'-0700', 'AKDT':'-0800', 'HDT':'-0900' }
                   
     def __init__(self, display, init):
-        super().__init__(display, init, default_refresh=20)
+        super().__init__(display, init, default_refresh=20, default_intro=INTRO)
         # Set other init variables unique to this segment
         self.location = init.get('location', None)
         self.lat = init.get('lat', None)
@@ -51,10 +53,6 @@ class Segment(SegmentParent):
             self.lat = 36.116453
             self.lon = -86.675228
             self.location = 'Default Location (BNA)'
-
-
-    def show_intro(self):
-        self.d.print('Weather provided by weather.gov')
 
 
     @classmethod
@@ -90,9 +88,16 @@ class Segment(SegmentParent):
 
     @classmethod
     def string_to_dt(cls, s):
-        # Convert a string in weather.gov's "last update" format to
-        # a timezone-aware datetime object
+        # Convert a string in weather.gov's "last update" format to a
+        # timezone-aware datetime object, so we can compare to current
+        # date/time and check if the weather info is a bit older than one hour
         dt_string = s.strip()
+        # Ensure that day and hour are zero-padded, to satisfy some systems
+        if dt_string[1] == ' ':
+            dt_string = '0' + dt_string
+        col_pos = dt_string.find(':')
+        if dt_string[col_pos-2] == ' ':
+            dt_string = dt_string[0:col_pos-1] + '0' + dt_string[col_pos-1:]
         # Assume year is current year (possibly inaccurate just after
         # midnight on New Year's Eve... oh well)
         dt_string = f"{dt.datetime.now().year} {dt_string}"
@@ -183,8 +188,7 @@ class Segment(SegmentParent):
 
     def show(self, fmt):
         forecast_periods = fmt.get('forecast_periods', 5)
-        if forecast_periods < 0:
-            forecast_periods = 0
+        forecast_periods = self.clamp(forecast_periods, 0, 15)
 
         if self.data_is_stale():
             self.d.print_update_msg('Checking for Weather Updates')

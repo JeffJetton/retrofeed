@@ -26,21 +26,23 @@
 #                        automatically ignored).  Default = 3
 #
 #
-#
 #   Jeff Jetton, January-April 2023
 #
 ################################################################################
-
 
 
 import datetime as dt
 from segment_parent import SegmentParent
 
 
+DATE_FORMAT = "{ts '%Y-%m-%d %H:%M:%S'}"
+INTRO = 'ISS Sightings provided by spotthestation.nasa.gov'
+
+
 class Segment(SegmentParent):
                   
     def __init__(self, display, init):
-        super().__init__(display, init, default_refresh=(24*60))
+        super().__init__(display, init, default_refresh=(24*60), default_intro=INTRO)
         # Set other init variables that are unique to this segment
         self.country = init.get('country', None)
         self.region = init.get('region', None)
@@ -53,10 +55,6 @@ class Segment(SegmentParent):
         self.location = init.get('location', f'{self.city}, {self.region}, {self.country}'.replace('_', ' '))
 
 
-    def show_intro(self):
-        self.d.print('ISS Sightings provided by spotthestation.nasa.gov')
-
-
     def parse_one_sighting(self, raw_text):
         # Figure out current UTC offset from localtime
         utc_diff = dt.datetime.utcnow() - dt.datetime.now()
@@ -66,8 +64,11 @@ class Segment(SegmentParent):
         if len(fields) == 7:
             # Remove seconds part of formated datetime
             date_string = fields[0].replace(':00.0', '')
-            # Convert to datetime object, local time
-            date_time = dt.datetime.strptime(date_string, '%Y-%m-%d %H:%M') - utc_diff
+            # Try to convert to datetime object, local time
+            try:
+                date_time = dt.datetime.strptime(date_string, DATE_FORMAT) - utc_diff
+            except:
+                return None
             s = {'date_time':date_time,
                  'date_text':self.d.clean_chars(fields[1]),
                  'time_text':self.d.clean_chars(fields[2]),
@@ -108,7 +109,6 @@ class Segment(SegmentParent):
             self.data['sightings'] = self.parse_sightings(soup)
 
 
-
     def show(self, fmt):
         max_sightings = fmt.get('max_sightings', 3)
         if max_sightings < 0:
@@ -143,7 +143,6 @@ class Segment(SegmentParent):
         # In case there were sightings, but they were all in the past...
         if num_shown == 0:
             self.d.print('No Future Sightings Available')
-
 
 
 
