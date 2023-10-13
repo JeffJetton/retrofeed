@@ -39,7 +39,6 @@
 
 
 import datetime as dt
-import requests
 from segment_parent import SegmentParent
 
 
