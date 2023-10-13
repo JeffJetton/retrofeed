@@ -12,21 +12,21 @@ This is not an exact science. Be prepared to do a **lot** of fiddling and tweaki
  
 You'll be making a lot of tweaks to the base Rasperry Pi OS, so I'd recommend doing this with a fresh install on a dedicated SD card that you can swap out with the card containing your regular, day-to-day OS install.
 
-Launch **Raspberry Pi Imager** and write to a new card with these options (most are behind the button with a "gear" icon that shows up once you pick an OS):
+Launch **Raspberry Pi Imager** and write to a new card with these options (most are behind the button with a **"gear" icon** that shows up once you pick an OS):
 
 * Operating System: Raspberry Pi OS (other) -> **Raspberry Pi OS Lite** (32-bit)
     * Really just about any Rasperry Pi OS will do, but since we won't be using the windowing system, we might as well leave it out and go with "Lite"
     * The 64-bit version might work too, but we don't really need it
-* Set a hostname. You'll use this hostname to log onto the Pi remotely via SSH later.
-* Enable SSH with password authentication
+* Set a **hostname**. You'll use this hostname to log onto the Pi remotely via SSH later.
+* **Enable SSH** with password authentication
     * If you're familiar with public-key authentication and want to use that instead, be my guest.
-* Select "Set username and password" and fill those in. You'll be using these along with the hostname to log on remotely, so remember what you pick.
-* Configure the wireless LAN with your local wi-fi network name and password.  Set the country to your country code.
-* Set your locale settings appropriately
+* Select "**Set username and password**" and fill those in. You'll be using these along with the hostname to log on remotely, so remember what you pick.
+* **Configure wireless LAN** with your local wi-fi network name and password.  Set the country to your country code.
+* Set your **locale** settings appropriately
 
-Click "Save", make sure your CD card is selected under "Storage", then choose "Write" and wait.
+Click "Save", make sure your SD card is selected under "Storage", then choose "Write" and wait.
 
-When it's ready, pop it into your Pi and boot it up. The first boot may take awhile, and you might not see anything on a connected monitor when it's done.
+When it's ready, pop it into your Pi and boot it up. The first boot may take a while and/or require reboots, and you might not see anything on a connected monitor when it's done.
 
 ## Connecting via SSH
 
@@ -55,8 +55,10 @@ sudo apt upgrade
 
 ## Composite Video
 
-Your Pi will need to send video using the composite output. On most modern Pis, this uses the so-called "audio" port and requires a special cable or adapter. Pretty much any commercially-available cable with a tip-ring-ring-sleeve 1/8" (3.5mm) plug on one end and three 1/4" RCA plugs on the other should do the job. These can be found for under 10USD. If you get the kind that is designed for camcorders, they'll do the job, although they're wired a bit differently: The Pi's video signal will actually come out the "audio right" plug (which is usually red).
-  
+Your Pi will need to send video using the composite output. On Raspberry Pi 3s and 4s, this uses the so-called "audio" port and requires a special cable or adapter. Pretty much any commercially-available cable with a tip-ring-ring-sleeve 1/8" (3.5mm) plug on one end and three 1/4" RCA plugs on the other should do the job. These can be found for under 10USD. If you get the kind that is designed for camcorders, they'll do the job, although they're wired a bit differently: The Pi's video signal will actually come out the "audio right" plug (which is usually red).
+
+(If you're using a Pi 5, this is going to require a **lot** more work, as they don't have built-in composite output jacks.)
+
 To switch on composite output, launch Raspi-Config from the command line:
 
 `sudo raspi-config`
@@ -205,17 +207,14 @@ If you've downloaded the files onto your primary computer (perhaps to write your
 
 The `.local` may or may not be necessary, depending on how you have things set up.
 
-### Install Required Package
+### Install the "Beautiful Soup" Package
 
-On the Pi, either directly or via ssh (skip the first two lines if you've just done them in the earlier steps above):
+RetroTerm relies on [Beautiful Soup](https://beautiful-soup-4.readthedocs.io/en/latest/) for parsing HTML. As of Raspbery Pi OS "Bookworm", you'll need to use `apt` to add the Debian-packaged version of it to your system Python environment:
 
 ```
-sudo apt update
-sudo apt upgrade
-sudo apt install python3-pip
-
-pip install beautifulsoup4
+sudo apt install python3-bs4
 ```
+(Installation via `pip` is still possible, but requires creating a virtual environment.)
 
 ### Run it!
 
@@ -226,7 +225,7 @@ cd retrofeed
 python retrofeed.py
 ```
 
->If you're trying out the program on a Mac, you'll probably need to use `python3` instead of `python`.
+>If you're trying out the program on a Mac, you'll probably need to use `python3` instead of `python` (assuming you haven't aliased it already).
 
 
 
