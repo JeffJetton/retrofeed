@@ -18,6 +18,7 @@
 
 from bs4 import BeautifulSoup
 import datetime as dt
+import re
 import requests
 from segment_parent import SegmentParent
 
@@ -35,10 +36,11 @@ class Segment(SegmentParent):
     def parse_list(self, lst):
         list_items = lst.find_all('li')
         for list_item in list_items:
-         #   list_item = self.d.strip_tags(list_item.text)
             list_item = self.d.clean_chars(list_item.get_text())
-            list_item = list_item.replace(' (pictured)', '')
-            list_item = list_item.replace(' (depicted)', '')
+            # Try to remove parenthetical references to media, like (featured),
+            # (portrait depicted), and (example pictured)
+            pattern = ' \([^\)]*(pictured|depicted|featured)\)'
+            list_item = re.sub(pattern, '', list_item, flags=re.IGNORECASE)
             self.data['items'].append(list_item)
 
 
