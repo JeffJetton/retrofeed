@@ -18,10 +18,6 @@
 ################################################################################
 
 
-# TODO: Wikipedia should remove (Example pictured) and other photo references
-#       and be case-insensitive when doing so
-# TODO: Add library requirements to README
-
 
 # Standard library imports
 import datetime as dt
