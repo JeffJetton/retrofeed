@@ -2,38 +2,40 @@
 #
 #  Associated Press News
 #
-#  Webscrapes news briefs info from apnews.com
+#  Webscrapes news briefs from apnews.com
 #
 #  Can cycle through a total of [max_items] news items, showing [items] news
 #  summaries each time, and/or display [items] top headlines.
 #
 #   - Initialization parameters:
 #
-#       refresh     Minutes to wait between webscrapes (default=30, min=1).
+#       refresh     Minutes to wait between webscrapes (default=30, min=1)
+#
+#       max_items   Number of articles to try to pull down with each refresh
+#                   (default=15, min=1, max=30)
 #
 #
 #   - Format parameters:
 #
-#       items       Number of news items or headlines to display during each
-#                   call to the segment's show() method.  Default = 3
+#       items           Number of news items or headlines to display during
+#                       each call to the show() method.  Defaults to 3 for
+#                       summaries, max_items for headline mode.
 #
-#       max_items   Max items to cycle through over all calls to show().  Once
-#                   that many items have been displayed (not counting headline
-#                   mode), we'll start back at the top with the first item.
-#                   Items also always reset to top when data is refreshed.
-#                   Default = 15
+#       summary_length  Number of paragraphs to display for each story in
+#                       normal (summary) mode.  (default=2, min=1, max=10)
 #
-#       headlines   True/False (default = False).  If true, only headlines are
-#                   shown, always starting with the first item and displaying
-#                   [items] headlines.  The segment is labeled "headlines"
-#                   instead of "summaries".  This does not reset or otherwise
-#                   affect the display sequence used with regular (non-headline)
-#                   news items.
+#       headline_mode   true/false (default = false).  If true, only headlines 
+#                       are shown, always starting with the first item and
+#                       displaying[items] headlines.  The segment is labeled
+#                       "headlines" instead of "summaries".  This does not reset
+#                       or otherwise affect the display sequence used with
+#                       regular (non-headline) news items.
+#
 #
 #   Jeff Jetton, Jan-Mar 2023
+#   Major updates Oct 20223
 #
 ################################################################################
-
 
 
 import datetime as dt
@@ -41,37 +43,30 @@ import requests
 from segment_parent import SegmentParent
 
 
+INTRO = 'News from apnews.com'
+
+
 class Segment(SegmentParent):
 
+
     def __init__(self, display, init):
-        super().__init__(display, init, default_refresh=30)
+        super().__init__(display, init, default_refresh=30, default_intro=INTRO)
+        max_items = init.get('max_items', 15)
+        self.max_items = self.clamp(max_items, 1, 30)
 
 
-    def show_intro(self):
-        self.d.print('News from apnews.com')
-
-
-    def get_headline(self, s):
-        pos = s.find('"headline":')
-        if pos < 0:
+    def get_story(self, url):
+        soup = self.get_soup(url)
+        if soup is None:
             return None
-        pos += 12
-        s = s[pos:]
-        pos = s.find('"description":')
-        if pos < 0:
+        story_div = soup.find('div', 'RichTextStoryBody')
+        if story_div is None:
             return None
-        pos -= 2
-        s = s[0:pos]
-        return self.d.strip_tags(self.d.clean_chars(s))
-
-
-    def get_summary(self, s):
-        pos = s.find("\\u003c/p>")
-        if pos < 0 or pos >= 500:
+        story = story_div.find_all('p')
+        if story is None or len(story) == 0:
             return None
-        pos -= 0
-        s = s[9:pos]
-        return self.d.strip_tags(self.d.clean_chars(s))
+        story = [self.d.clean_chars(p.get_text()) for p in story]
+        return story
     
     
     def refresh_data(self):
@@ -79,57 +74,73 @@ class Segment(SegmentParent):
                      'item_index':0,
                      'items':[],
                     }
-        url = 'https://apnews.com'
-        # We won't use BeautifulSoup -- Just munge the source directly
-        response = requests.get(url, headers={'Cache-Control': 'no-cache'})
-        if response.status_code == 200:
-            split_source = response.text.split('"firstWords":')
-            for chunk in split_source:
-                headline = self.get_headline(chunk)
-                summary = self.get_summary(chunk)
-                if headline is not None and summary is not None and headline.lower().find('top stories ') < 0:
-                    self.data['items'].append({'headline':headline, 'summary':summary})
+        url = 'https://apnews.com/hub/ap-top-news'
+        soup = self.get_soup(url)
+        if soup is None:
+            return
+        # Get divs of interest, up to max_items
+        story_divs = soup.find_all('div', 'PagePromo-content', limit=self.max_items)
+        # Get the urls and titles/headlines from those divs
+        for story in story_divs:
+            url_obj = story.find('a', 'Link')
+            url = url_obj.get('href')
+            headline = url_obj.get_text()
+            if url is not None and headline is not None:
+                headline = self.d.clean_chars(headline)
+                self.data['items'].append({'headline':headline, 'url':url})
+        # Try to get full stories for the linked articles
+        for item in self.data['items']:
+            item['story'] = self.get_story(item['url'])
+        # Add a special "item" if no items were found
         if len(self.data['items']) == 0:
-            self.data['items'].append({'headline':'*** Newsfeed Unavailable ***', 'summary':'N/A'})
+            self.data['items'].append({'headline':'*** Newsfeed Unavailable ***', 'story':None, 'url':None})
 
 
+    def show_summaries(self, num_items, summary_length):
+        self.d.print_header('AP News Summaries', '!')
+        self.d.newline()
+        for i in range(num_items):
+            self.d.newline(self.d.beat_delay)
+            if summary_length > 1 and i > 0:
+                self.d.newline()
+            item = self.data['items'][self.data['item_index']]
+            if item['story'] is None or len(item['story']) == 0:
+                self.d.print('*** Story Summary Unavailable ***')
+            else:
+                paragraphs = min(summary_length, len(item['story']))
+                for i in range(paragraphs):
+                    self.d.print(item['story'][i])
+                    self.d.newline()
+            self.data['item_index'] += 1
+            if self.data['item_index'] >= len(self.data['items']):
+                self.data['item_index'] = 0
+
+
+    def show_headlines(self, num_headlines):
+        self.d.print_header('AP Top Headlines', '!')
+        for i, item in enumerate(self.data['items']):
+            if i >= num_headlines:
+                break
+            self.d.newline(self.d.beat_delay)
+            self.d.print(item['headline'])
 
 
     def show(self, fmt):
-        items = fmt.get('items', 3)
-        max_items = fmt.get('max_items', 15)
-        headlines = fmt.get('headlines', False)
+
+        headline_mode = fmt.get('headline_mode', False)
         
         # Refresh?
         if self.data_is_stale():
             self.d.print_update_msg('Getting Latest News')
             self.refresh_data()
 
-        # Show header and set up start and end indices, based on headlines
-        if headlines:
-            self.d.print_header('AP News Headlines', '!')
-            # Headlines always start with first item. They don't cycle.
-            start_index = 0
-            end_index = min(items, len(self.data['items']))
+        if headline_mode:
+            num_items = fmt.get('items', self.max_items)
+            self.show_headlines(num_items)
         else:
-            self.d.print_header('AP News Summaries', '!')
-            # Restart item index?
-            if self.data['item_index'] >= max_items or self.data['item_index'] >= len(self.data['items']):
-                self.data['item_index'] = 0
-            start_index = self.data['item_index']
-            end_index = min(start_index + items, len(self.data['items']))
-
-        # Show items
-        for item in self.data['items'][start_index:end_index]:
-            if not headlines:
-                self.d.newline()
-            self.d.newline(self.d.beat_delay)
-            self.d.print(item['headline'])
-            if not headlines:
-                self.d.newline()
-                self.d.print(item['summary'])
-                self.data['item_index'] += 1
-
-
+            num_items = fmt.get('items', 3)
+            summary_length = fmt.get('summary_length', 1)
+            summary_length = self.clamp(summary_length, 1, 10)
+            self.show_summaries(num_items, summary_length)
 
 
