@@ -1,0 +1,86 @@
+########  RetroFeed settings  #################################################
+
+
+# Settings for the Display object that is created on start-up and that all
+# segments use to print text to the screen (and a few other things)
+[display]
+height = 24             # Height/width used for text wrapping, centering, etc.
+width = 40              # Doesn't have to match actual terminal settings (i.e.,
+                        # you can wrap at 40 chars on an 80 column display)
+
+cps = 20                # Print speed in characters-per-second for regular text
+newline_cps = 100       # Print speed (in cps) for "displaying" a skipped line
+beat_seconds = 1        # How long to pause when segments "wait a beat" during
+                        # display, such as between days in a weather forecast,
+                        # or between news stories.  Also used for the pause
+                        # during newlines and elsewhere.  Not to be confused
+                        # with segment_pause which is a playlist property.
+force_uppercase = true
+verbose_updates = true
+24hr_time = true
+
+
+
+# Segment initialization section.  Include ALL segments you plan to use here.
+# Order of initialization doesn't affect playlist order (only "intro" order).
+#
+# Assign each segment to a unique key, which is used by the "playlist" below.
+# Each segment MUST have a "module" value identifying the name of the file in
+# the segments directory that should be used to instantiate the segment.
+# Depending on the segment, there may be additional required initialization
+# values in addition to module.  Refer to the segment's documentation.
+[segments]
+dtime = {module = 'date_time.py'}
+news = {module = 'ap_news.py'}
+fin = {module = 'yahoo_finance.py'}
+# Note that the ".py" at the end of the module is optional
+lucky = {module = 'lucky_numbers'}
+# Example of a segment that requires additional initialization values
+iss = {module='spot_the_station', country='United_States', region='Tennessee', city='Nashville'}
+# Example of telling a segment not to show intro credits when instantiated
+otd = {module = 'wiki_on_this_day', intro = ''}
+# Example of declaring a segment module more than once, with a different key
+# and different initialization parameters.  Here, we're declaring us_weather
+# twice, in order to show two different cities.  That's perfectly legal!
+# (Only one intro will be shown per module, to prevent duplicates.)
+nash_wx = {module='us_weather', refresh=15, lat=36.118542, lon=-86.798358, location='Nashville Intl Airport (BNA)'}
+bos_wx = {module='us_weather', refresh=30, lat=42.365738, lon=-71.017027, location='Boston Logan Intl Airport'}
+
+
+
+# The playlist is where you specify the order of the segments declared above,
+# and the speed at which RetroFeed continuously loops through that order.
+# Be sure to use the keys initialized above and not the module names!
+#
+# If a TOML array is given instead of a string, the first element of the array
+# is assumed to be the key, and the second element is assumed to be additional
+# parameters for formatting the data gathered by the segment.  This lets you
+# declare a segment only once in the above section, resulting in just one
+# segment doing the fetching/processing of info, but then showing that info in
+# different ways at different spots in the playlist.  For example, showing the
+# full weather forecast for a city only once per playlist, with abbreviated
+# weather at all other points in the playlist.  If a segment takes these sorts
+# of display parameters, but none are given, defaults will be assumed.
+[playlist]
+segment_pause = 6        # Seconds to wait between segments
+order = ['dtime',
+         'nash_wx',
+         'dtime',
+         'news',
+         'otd',
+         'dtime',
+         'fin',
+         # Ask dtime to use a slightly different format for this showing...
+         ['dtime', {format = 'short'}],
+         'iss',
+         'dtime',
+         # Use abbreviated forecast for Boston
+         ['bos_wx', {forecast_periods = 1}],
+         'dtime',
+         'news',
+         'dtime',
+         'lucky',
+         'otd',
+         # Just have news show the top 8 headlines...
+         ['news', {items = 8, headline_mode = true}]
+        ]
