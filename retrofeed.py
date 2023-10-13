@@ -148,10 +148,7 @@ def main():
     # This will be used by all segments
     d = Display(config['display'])
 
-    # Segment modules may display intros on initialization,
-    # but we want the main title to come first
-    if d.show_intros:
-        show_title(d)
+    show_title(d)
     segments = instantiate_segments(config, d)
 
     # Unpack the playlist
