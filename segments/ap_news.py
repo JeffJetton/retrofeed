@@ -4,8 +4,9 @@
 #
 #  Webscrapes news briefs from apnews.com
 #
-#  Can cycle through a total of [max_items] news items, showing [items] news
-#  summaries each time, and/or display [items] top headlines.
+#  Can cycle through a total of [max_items] news items, showing the first
+#  [item_length] paragraphs of [items] news stories each time, and/or display
+#  the top [items] headlines.
 #
 #   - Initialization parameters:
 #
@@ -17,19 +18,19 @@
 #
 #   - Format parameters:
 #
-#       items           Number of news items or headlines to display during
-#                       each call to the show() method.  Defaults to 3 for
-#                       summaries, max_items for headline mode.
+#       items           Number of news stories or headlines to display during
+#                       each call to the show() method.  Defaults to 3, or to
+#                       [max_items] if in headline mode.
 #
-#       summary_length  Number of paragraphs to display for each story in
-#                       normal (summary) mode.  (default=2, min=1, max=10)
+#       item_length     Number of paragraphs to display for each story in
+#                       normal (non-headline) mode.  (default=2, min=1, max=10)
 #
 #       headline_mode   true/false (default = false).  If true, only headlines 
 #                       are shown, always starting with the first item and
-#                       displaying[items] headlines.  The segment is labeled
-#                       "headlines" instead of "summaries".  This does not reset
-#                       or otherwise affect the display sequence used with
-#                       regular (non-headline) news items.
+#                       displaying [items] headlines.  The segment is labeled
+#                       "AP News Headlines" instead of just "AP News".  This
+#                       does not reset or otherwise affect the display sequence
+#                       used with regular (non-headline) news items.
 #
 #
 #   Jeff Jetton, Jan-Mar 2023
@@ -95,18 +96,18 @@ class Segment(SegmentParent):
             self.data['items'].append({'headline':'*** Newsfeed Unavailable ***', 'story':None, 'url':None})
 
 
-    def show_summaries(self, num_items, summary_length):
-        self.d.print_header('AP News Summaries', '!')
+    def show_stories(self, num_items, item_length):
+        self.d.print_header('AP News', '!')
         self.d.newline()
         for i in range(num_items):
             self.d.newline(self.d.beat_delay)
-            if summary_length > 1 and i > 0:
+            if item_length > 1 and i > 0:
                 self.d.newline()
             item = self.data['items'][self.data['item_index']]
             if item['story'] is None or len(item['story']) == 0:
-                self.d.print('*** Story Summary Unavailable ***')
+                self.d.print('*** Item Story Unavailable ***')
             else:
-                paragraphs = min(summary_length, len(item['story']))
+                paragraphs = min(item_length, len(item['story']))
                 for i in range(paragraphs):
                     self.d.print(item['story'][i])
                     self.d.newline()
@@ -138,8 +139,8 @@ class Segment(SegmentParent):
             self.show_headlines(num_items)
         else:
             num_items = fmt.get('items', 3)
-            summary_length = fmt.get('summary_length', 1)
-            summary_length = self.clamp(summary_length, 1, 10)
-            self.show_summaries(num_items, summary_length)
+            item_length = fmt.get('item_length', 1)
+            item_length = self.clamp(item_length, 1, 10)
+            self.show_stories(num_items, item_length)
 
 
