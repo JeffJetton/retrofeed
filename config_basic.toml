@@ -1,0 +1,46 @@
+########  RetroFeed settings  #################################################
+#
+#   A more stripped-down example:  Just time, weather, and news
+#
+#   You can either replace config.toml with this file, or tell RetroFeed to use
+#   this file instead of the default when you launch it:
+#
+#       python retrofeed.py config_basic.toml
+#
+###############################################################################
+
+
+[display]
+height = 24
+width = 40
+cps = 20
+newline_cps = 100
+beat_seconds = 1
+force_uppercase = true
+verbose_updates = true
+24hr_time = true
+
+
+[segments]
+dtime = {module = 'date_time.py'}
+news = {module = 'ap_news.py'}
+wx = {module='us_weather', refresh=15, lat=36.118542, lon=-86.798358, location='Nashville Intl Airport (BNA)'}
+
+
+[playlist]
+# Alternating weather and news, with date/time in between them.
+# Full weather and full date/time only shown at top of playlist.
+segment_pause = 6
+order = ['dtime',                           # Full date/time
+         'wx',                              # Full weather
+         ['dtime', {format = 'short'}],     # Short date/time
+         'news',                            # Some news items
+         ['dtime', {format = 'short'}],
+         ['wx', {forecast_periods = 1}],    # Short weather
+         ['dtime', {format = 'short'}],
+         'news',
+         ['dtime', {format = 'short'}],
+         ['wx', {forecast_periods = 1}],
+         ['dtime', {format = 'short'}],
+         'news',
+        ]
