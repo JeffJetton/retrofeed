@@ -20,6 +20,7 @@
 
 
 # Standard library imports
+import argparse
 import datetime as dt
 import importlib.util
 import os
@@ -121,24 +122,36 @@ def show_title(d):
     d.newline()
 
 
+def get_args():
+    parser = argparse.ArgumentParser(description='Send a retro-style newsfeed to stdout.')
+    parser.add_argument('-f', '--fast', action='store_true', dest='fast_mode',
+                        help='Use fast display speed, overriding config file settings')
+    parser.add_argument('-v', '--version', action='version', version='RetroFeed ' + VERSION)
+    parser.add_argument('filename', nargs='?', default=CONFIG_FILENAME,
+                        help='Specify TOML configuration file. If omitted, defaults to config.toml')
+    return parser.parse_args()
+
+
 
 ###############################################################################
 
 def main():
-
+    
+    # Handle command-line options/arguments
+    args = get_args()
+    
     # Get config info from the TOML file
     try:
-        with open(CONFIG_FILENAME, 'rb') as f:
+        with open(args.filename, 'rb') as f:
             config = tomllib.load(f)
+        check_config_tables(config)
+        # If user ran with the -f flag, use faster display timings, which is
+        # useful for quickly checking segment order/format changes, etc.
+        if args.fast_mode:
+            config = override_timings(config)
     except FileNotFoundError:
         print(f'\n*** Missing configuration file "{CONFIG_FILENAME}"\n')
         return
-    check_config_tables(config)
-
-    # Override with faster timings if there are any command-line args at all
-    # Handy for quickly checking segments without having to change config.toml
-    if len(sys.argv) > 1:
-        config = override_timings(config)
 
     # Create Display object from config settings
     # This will be used by all segments
