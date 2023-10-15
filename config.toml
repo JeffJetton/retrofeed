@@ -1,5 +1,8 @@
 ########  RetroFeed settings  #################################################
 
+# Default settings file
+# This is a "kitchen sink" example, with lots of examples and comments
+# See config_basic.toml for a simpler example
 
 # Settings for the Display object that is created on start-up and that all
 # segments use to print text to the screen (and a few other things)
