@@ -12,11 +12,11 @@ This is not an exact science. Be prepared to do a **lot** of fiddling and tweaki
  
 You'll be making a lot of tweaks to the base Rasperry Pi OS, so I'd recommend doing this with a fresh install on a dedicated SD card that you can swap out with the card containing your regular, day-to-day OS install.
 
-Launch **Raspberry Pi Imager** and write to a new card with these options (most are behind the button with a **"gear" icon** that shows up once you pick an OS):
+Launch **Raspberry Pi Imager** and write to a new card with the options below. Most of these are on the **"Advanced Options"** screen, which you can reach by typing **CTRL+SHIFT+X**. (Some versions of the Imager show a "gear" icon once you pick an OS, and you can get to Advanced Options that way too.)
 
-* Operating System: Raspberry Pi OS (other) -> **Raspberry Pi OS Lite** (32-bit)
+* Operating System: Raspberry Pi OS (other) -> **Raspberry Pi OS Lite**
     * Really just about any Rasperry Pi OS will do, but since we won't be using the windowing system, we might as well leave it out and go with "Lite"
-    * The 64-bit version might work too, but we don't really need it
+    *  I use the **32-bit** version, but if your Pi supports it, feel free to opt for 64-bit. It shouldn't make a different for this project.
 * Set a **hostname**. You'll use this hostname to log onto the Pi remotely via SSH later.
 * **Enable SSH** with password authentication
     * If you're familiar with public-key authentication and want to use that instead, be my guest.
